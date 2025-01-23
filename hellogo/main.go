@@ -1,10 +1,10 @@
 package main
 
-import {
+import (
 	"fmt"
 
-	"github.com/TheYorouzoya/mystrings"
-}
+	"github.com/TheYorouzoya/boot-dev-golang/mystrings"
+)
 
 func main() {
 	fmt.Println(mystrings.Reverse("hello world"))
