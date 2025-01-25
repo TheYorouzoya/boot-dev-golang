@@ -11,9 +11,10 @@ func main() {
 	const prompt string = "Pokedex > "
 
 	initCommandRegistry()
+	defaultAPIMapPath := "https://pokeapi.co/api/v2/location-area/"
 	apiConfig := config{
-		Next: "https://pokeapi.co/api/v2/location-area/",
-		Previous: "null",
+		Next: &defaultAPIMapPath,
+		Previous: nil,
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)

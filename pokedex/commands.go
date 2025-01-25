@@ -3,18 +3,18 @@ package main
 import (
 	"fmt"
 	"os"
-	"github.com/TheYorouzoya/boot-dev-golang/internal/pokeAPIHandler"
+	"github.com/TheYorouzoya/boot-dev-golang/pokedex/internal/pokeAPIHandler"
 )
 
 type cliCommand struct {
 	name 			string
 	description 	string
-	callback 		func() error
+	callback 		func(*config) error
 }
 
 type config struct {
-	Next 		string
-	Previous 	string
+	Next 		*string
+	Previous 	*string
 }
 
 
@@ -36,6 +36,11 @@ func initCommandRegistry() {
 			name: "map",
 			description: "Displays the next 20 city locations",
 			callback: commandMap,
+		},
+		"mapb": {
+			name: "map",
+			description: "Goes to the previous 20 city locations",
+			callback: commandMapb,
 		},
 	}
 }
@@ -68,9 +73,31 @@ func commandMap(config *config) error {
 	config.Next = apiResponse.Next
 	config.Previous = apiResponse.Previous
 
-	for city := range apiResponse.Results {
+	for _, city := range apiResponse.Results {
 		fmt.Println(city.Name)
 	}
 
+	return nil
+}
+
+func commandMapb(config *config) error {
+	if config.Previous == nil {
+		fmt.Println("you're on the first page")
+		return nil
+	}
+
+	apiURL := config.Previous
+
+	apiResponse, err := pokeAPIHandler.QueryMap(apiURL)
+	if err != nil {
+		return err
+	}
+
+	config.Next = apiResponse.Next
+	config.Previous = apiResponse.Previous
+
+	for _, city := range apiResponse.Results {
+		fmt.Println(city.Name)
+	}
 	return nil
 }

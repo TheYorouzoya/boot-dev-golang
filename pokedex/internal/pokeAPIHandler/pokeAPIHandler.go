@@ -8,18 +8,21 @@ import (
 )
 
 type PokeAPIMapResponse struct {
-	Count    int    `json:"count"`
-	Next     string `json:"next"`
-	Previous any    `json:"previous"`
+	Count    int     `json:"count"`
+	Next     *string `json:"next"`
+	Previous *string `json:"previous"`
 	Results  []struct {
 		Name string `json:"name"`
 		URL  string `json:"url"`
 	} `json:"results"`
 }
 
-func QueryMap(query string) (PokeAPIMapResponse, error) {
+func QueryMap(query *string) (PokeAPIMapResponse, error) {
+	if query == nil {
+		return PokeAPIMapResponse{}, fmt.Errorf("Query is empty")
+	}
 	// make the api request to get map data
-	res, err := http.Get(query)
+	res, err := http.Get(*query)
 	if err != nil {
 		return PokeAPIMapResponse{}, err
 	}
