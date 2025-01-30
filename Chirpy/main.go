@@ -17,6 +17,7 @@ type apiConfig struct {
 	dbQueries 		*database.Queries
 	platform		string
 	tokenSecret 	string
+	polkaKey		string
 }
 
 
@@ -25,6 +26,10 @@ func main() {
 
 	// fetch database link url from environment
 	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("Could not get DB URL from the environment")
+	}
+
 	db, err := sql.Open("postgres", dbURL)
 
 	if err != nil {
@@ -34,7 +39,19 @@ func main() {
 
 	// fetch platform type from environment
 	currentPlatform := os.Getenv("PLATFORM")
+	if currentPlatform == "" {
+		log.Fatal("Could not get playform variable from the environment")
+	}
+
 	secretString := os.Getenv("TOKEN_SECRET_STRING")
+	if secretString == "" {
+		log.Fatal("Could not get token generation secret string from the environment")
+	}
+
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		log.Fatal("Could not get polka key from the environment")
+	}
 
 	serveMux := http.NewServeMux()
 	var server http.Server
@@ -43,6 +60,7 @@ func main() {
 	cfg.dbQueries = database.New(db)
 	cfg.platform = currentPlatform
 	cfg.tokenSecret = secretString
+	cfg.polkaKey = polkaKey
 
 	server.Addr = ":8080"
 	server.Handler = serveMux
@@ -58,6 +76,7 @@ func main() {
 
 	// API User Routes
 	serveMux.HandleFunc("POST /api/users", cfg.createUser)
+	serveMux.HandleFunc("PUT /api/users", cfg.updateUser)
 	serveMux.HandleFunc("POST /api/login", cfg.loginUser)
 	serveMux.HandleFunc("POST /api/refresh", cfg.refreshAccessToken)
 	serveMux.HandleFunc("POST /api/revoke", cfg.revokeRefreshToken)
@@ -66,6 +85,9 @@ func main() {
 	serveMux.HandleFunc("POST /api/chirps", cfg.createChirp)
 	serveMux.HandleFunc("GET /api/chirps", cfg.getAllChirps)
 	serveMux.HandleFunc("GET /api/chirps/{chirpID}", cfg.getChirp)
+	serveMux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.deleteChirp)
+
+	serveMux.HandleFunc("POST /api/polka/webhooks", cfg.upgradeUserToChirpyRed)
 
 	// Admin Routes
 	serveMux.HandleFunc("GET /admin/metrics", cfg.returnMetrics)

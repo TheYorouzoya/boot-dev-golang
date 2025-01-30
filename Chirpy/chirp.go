@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -72,7 +73,8 @@ func (cfg *apiConfig) createChirp(writer http.ResponseWriter, request *http.Requ
 func (cfg *apiConfig) getChirp(writer http.ResponseWriter, request *http.Request) {
 	chirpID, err := uuid.Parse(request.PathValue("chirpID"))
 	if err != nil {
-		responseError(writer, http.StatusInternalServerError, fmt.Sprintf("Invalid UUID: %s", err), err)
+		responseError(writer, http.StatusBadRequest, fmt.Sprintf("Malformed UUID: %s", err), err)
+		return
 	}
 
 	chirpData, err := cfg.dbQueries.GetChirp(request.Context(), chirpID)
@@ -86,18 +88,92 @@ func (cfg *apiConfig) getChirp(writer http.ResponseWriter, request *http.Request
 }
 
 
+func (cfg *apiConfig) deleteChirp(writer http.ResponseWriter, request *http.Request) {
+	accessToken, err := auth.GetBearerToken(request.Header)
+	if err != nil {
+		responseError(writer, http.StatusUnauthorized, "Missing/Malformed auth token in header", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(accessToken, cfg.tokenSecret)
+	if err != nil {
+		responseError(writer, http.StatusUnauthorized, "Invalid auth token", err)
+		return
+	}
+
+	chirpID, err := uuid.Parse(request.PathValue("chirpID"))
+	if err != nil {
+		responseError(writer, http.StatusBadRequest, fmt.Sprintf("Malformed UUID: %v", err), err)
+		return
+	}
+
+	chirpData, err := cfg.dbQueries.GetChirp(request.Context(), chirpID)
+	if err != nil {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if chirpData.UserID != userID {
+		responseError(writer, http.StatusForbidden, "Unauthorized request", err)
+		return
+	}
+
+	err = cfg.dbQueries.DeleteChirp(request.Context(), chirpData.ID)
+	if err != nil {
+		responseError(writer, http.StatusInternalServerError, "Error deleting chirp", err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
+}
+
 
 func (cfg *apiConfig) getAllChirps(writer http.ResponseWriter, request *http.Request) {
 
-	allChirps, err := cfg.dbQueries.AllChirps(request.Context())
-	if err != nil {
-		responseError(writer, http.StatusInternalServerError, fmt.Sprintf("Error fetching chirps: %s", err), err)
+	var allChirps []database.Chirp
+	var err error
+	var sortOrder bool
+
+	sortQuery := request.URL.Query().Get("sort")
+	if sortQuery == "" || sortQuery == "asc" {
+		sortOrder = false
+	} else if sortQuery == "desc" {
+		sortOrder = true
 	}
 
-	chirps := make([]Chirp, len(allChirps))
+	authorIDString := request.URL.Query().Get("author_id")
+	if authorIDString != "" {
+		authorID, err := uuid.Parse(authorIDString)
+		if err != nil {
+			responseError(writer, http.StatusBadRequest, "Malformed User ID", err)
+			return
+		}
+
+		allChirps, err = cfg.dbQueries.GetChirpsByUser(request.Context(), authorID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				responseError(writer, http.StatusNotFound, "Given author has no chirps", err)
+				return
+			}
+			responseError(writer, http.StatusInternalServerError, "Error fetching chirps", err)
+			return
+		}
+	} else {
+		allChirps, err = cfg.dbQueries.AllChirps(request.Context())
+		if err != nil {
+			responseError(writer, http.StatusInternalServerError, fmt.Sprintf("Error fetching chirps: %s", err), err)
+		}
+	}
+
+	numChirps := len(allChirps)
+	chirps := make([]Chirp, numChirps)
 
 	for i, chirp := range allChirps {
-		chirps[i] = Chirp(chirp)
+		if sortOrder {
+			chirps[numChirps - i - 1] = Chirp(chirp)
+		} else {
+			chirps[i] = Chirp(chirp)
+		}
 	}
 
 	responseJSON(writer, http.StatusOK, chirps)

@@ -9,10 +9,27 @@ VALUES (
 )
 RETURNING *;
 
--- name: GetUser :one
+-- name: UpdateUser :one
+UPDATE users
+SET email = $1, hashed_password = $2
+WHERE id = $3
+RETURNING *;
+
+-- name: UpgradeUserToChirpyRed :one
+UPDATE users
+SET is_chirpy_red = true
+WHERE id = $1
+RETURNING *;
+
+-- name: GetUserWithEmail :one
 SELECT *
 FROM users
 WHERE email = $1;
+
+-- name: GetUserWithID :one
+SELECT *
+FROM users
+WHERE id = $1;
 
 -- name: DeleteAllUsers :exec
 TRUNCATE TABLE users CASCADE;
