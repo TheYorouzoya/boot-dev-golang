@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"github.com/TheYorouzoya/boot-dev-golang/pokedex/internal/pokeAPIHandler"
+	"github.com/TheYorouzoya/boot-dev-golang/pokedex/internal/pokecache"
 )
 
 type cliCommand struct {
@@ -15,6 +17,7 @@ type cliCommand struct {
 type config struct {
 	Next 		*string
 	Previous 	*string
+	Cache		*pokecache.Cache
 }
 
 
@@ -38,7 +41,7 @@ func initCommandRegistry() {
 			callback: commandMap,
 		},
 		"mapb": {
-			name: "map",
+			name: "mapb",
 			description: "Goes to the previous 20 city locations",
 			callback: commandMapb,
 		},
@@ -65,7 +68,7 @@ func commandHelp(config *config) error {
 func commandMap(config *config) error {
 	apiURL := config.Next		// get the next map page url
 
-	apiResponse, err := pokeAPIHandler.QueryMap(apiURL)
+	apiResponse, err := pokeAPIHandler.QueryMap(apiURL, config.Cache)
 	if err != nil {
 		return err
 	}
@@ -88,7 +91,7 @@ func commandMapb(config *config) error {
 
 	apiURL := config.Previous
 
-	apiResponse, err := pokeAPIHandler.QueryMap(apiURL)
+	apiResponse, err := pokeAPIHandler.QueryMap(apiURL, config.Cache)
 	if err != nil {
 		return err
 	}
