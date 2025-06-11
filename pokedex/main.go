@@ -32,20 +32,20 @@ func main() {
 		userInput = strings.ToLower(userInput)
 		splitInput := cleanInput(userInput)
 		command := splitInput[0]
+		commandArgs := splitInput[1:]
 
 		register, ok := commandRegistry[command]
 
 		if !ok {
 			fmt.Println("Unknown command")
 		} else {
-			err := register.callback(&apiConfig)
+			err := register.callback(&apiConfig, commandArgs)
 			if err != nil {
 				fmt.Println(err)
 			}
 		}
 	}
 }
-
 
 func cleanInput(text string) []string {
 

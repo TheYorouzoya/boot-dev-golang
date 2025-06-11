@@ -11,7 +11,7 @@ import (
 type cliCommand struct {
 	name 			string
 	description 	string
-	callback 		func(*config) error
+	callback 		func(*config, []string) error
 }
 
 type config struct {
@@ -45,18 +45,23 @@ func initCommandRegistry() {
 			description: "Goes to the previous 20 city locations",
 			callback: commandMapb,
 		},
+		"explore": {
+			name: "explore",
+			description: "Displays all the Pokemon in a map location",
+			callback: commandExplore,
+		},
 	}
 }
 
 
-func commandExit(config *config) error {
+func commandExit(config *config, args []string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
 
-func commandHelp(config *config) error {
+func commandHelp(config *config, args []string) error {
 	fmt.Printf("Welcome to the Pokedex!\nUsage:\n\n")
 	for _, command := range commandRegistry {
 		fmt.Printf("%s: %s\n", command.name, command.description)
@@ -65,7 +70,7 @@ func commandHelp(config *config) error {
 }
 
 
-func commandMap(config *config) error {
+func commandMap(config *config, args []string) error {
 	apiURL := config.Next		// get the next map page url
 
 	apiResponse, err := pokeAPIHandler.QueryMap(apiURL, config.Cache)
@@ -77,13 +82,13 @@ func commandMap(config *config) error {
 	config.Previous = apiResponse.Previous
 
 	for _, city := range apiResponse.Results {
-		fmt.Println(city.Name)
+		fmt.Println(*city.Name)
 	}
 
 	return nil
 }
 
-func commandMapb(config *config) error {
+func commandMapb(config *config, args []string) error {
 	if config.Previous == nil {
 		fmt.Println("you're on the first page")
 		return nil
@@ -100,7 +105,27 @@ func commandMapb(config *config) error {
 	config.Previous = apiResponse.Previous
 
 	for _, city := range apiResponse.Results {
-		fmt.Println(city.Name)
+		fmt.Println(*city.Name)
+	}
+	return nil
+}
+
+func commandExplore(config *config, args []string) error {
+	if args == nil || len(args) != 1 {
+		return fmt.Errorf("Invalid number of arguments.\nUsage: explore <area_name>")
+	}
+
+	apiURL := "https://pokeapi.co/api/v2/location-area/" + args[0]
+
+	apiResponse, err := pokeAPIHandler.QueryExplore(&apiURL, config.Cache)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Exploring %s...\nFound Pokemon:\n", args[0])
+
+	for _, pokemon := range apiResponse.PokemonEncounters {
+		fmt.Println(*pokemon.Pokemon.Name)
 	}
 	return nil
 }
