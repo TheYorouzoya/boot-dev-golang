@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"math/rand/v2"
 	"os"
 
 	"github.com/TheYorouzoya/boot-dev-golang/pokedex/internal/pokeAPIHandler"
@@ -18,6 +20,7 @@ type config struct {
 	Next 		*string
 	Previous 	*string
 	Cache		*pokecache.Cache
+	Pokedex		map[string]pokeAPIHandler.PokeAPIPokemonResponse
 }
 
 
@@ -47,8 +50,18 @@ func initCommandRegistry() {
 		},
 		"explore": {
 			name: "explore",
-			description: "Displays all the Pokemon in a map location",
+			description: "Displays all the Pokemon in a map location\nUsage: explore <area-name>",
 			callback: commandExplore,
+		},
+		"catch": {
+			name: "catch",
+			description: "Attempt to catch a pokemon\nUsage: catch <pokemon>",
+			callback: commandCatch,
+		},
+		"inspect": {
+			name: "inspect",
+			description: "Displays the details of the pokemon from your pokedex\nUsage: inspect <pokemon>",
+			callback: commandInspect,
 		},
 	}
 }
@@ -127,5 +140,80 @@ func commandExplore(config *config, args []string) error {
 	for _, pokemon := range apiResponse.PokemonEncounters {
 		fmt.Println(*pokemon.Pokemon.Name)
 	}
+	return nil
+}
+
+func commandCatch(config *config, args []string) error {
+	if args == nil || len(args) != 1 {
+		return fmt.Errorf("Invalid number of arguments./nUsage: catch <pokemon>")
+	}
+
+	pokemon := args[0]
+
+	apiURL := "https://pokeapi.co/api/v2/pokemon/" + pokemon + "/"
+
+	apiResponse, err := pokeAPIHandler.QueryPokemon(&apiURL, config.Cache)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Throwing a Pokeball at %s...\n", pokemon)
+
+	baseXP := apiResponse.BaseExperience
+
+	chance := 1.0 / (1.0 + math.Log(float64(baseXP)))
+
+	if rand.Float64() < chance {
+		config.Pokedex[pokemon] = apiResponse
+		fmt.Printf("%s was caught!\n", pokemon)
+	} else {
+		fmt.Printf("%s escaped!\n", pokemon)
+	}
+
+	return nil
+}
+
+
+func commandInspect(config *config, args []string) error {
+	if args == nil || len(args) != 1 {
+		return fmt.Errorf("Invalid number of arguments.\nUsage: inspect <pokemon>")
+	}
+
+	pokemon := args[0]
+
+	pokedexEntry, exists := config.Pokedex[pokemon]
+
+	if !exists {
+		return fmt.Errorf("you have not caught that pokemon")
+	}
+
+	stats := ""
+
+	for _, stat := range pokedexEntry.Stats {
+		stats += fmt.Sprintf("   -%s: %d\n", *stat.Stat.Name, stat.BaseValue)
+	}
+
+	types := ""
+
+	for _, typ := range pokedexEntry.Types {
+		types += fmt.Sprintf("   -%s\n", *typ.Type.Name)
+	}
+
+	entry := fmt.Sprintf(
+		`Name: %s
+Height: %d
+Weight: %d
+Stats:
+%s
+Types:
+%s`,
+		pokemon,
+		pokedexEntry.Height,
+		pokedexEntry.Weight,
+		stats,
+		types)
+
+	fmt.Print(entry)
 	return nil
 }

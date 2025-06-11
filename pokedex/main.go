@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
-
 	"github.com/TheYorouzoya/boot-dev-golang/pokedex/internal/pokecache"
+	"github.com/TheYorouzoya/boot-dev-golang/pokedex/internal/pokeAPIHandler"
 )
 
 func main() {
@@ -21,6 +21,7 @@ func main() {
 		Next: &defaultAPIMapPath,
 		Previous: nil,
 		Cache: &APICache,
+		Pokedex: map[string]pokeAPIHandler.PokeAPIPokemonResponse{},
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
